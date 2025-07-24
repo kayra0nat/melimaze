@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Romantic Maze Game</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #fff;
+    text-align: center;
+    margin: 0; padding: 0;
+  }
+  #game {
+    display: inline-block;
+    margin-top: 20px;
+    user-select: none;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 0 auto;
+  }
+  td {
+    width: 36px; height: 36px;
+    font-size: 28px;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid #999;
+  }
+  .wall {
+    background: #654321;
+  }
+  .path {
+    background: #f0e5d8;
+  }
+  .player {
+    font-size: 34px;
+  }
+  .exit {
+    font-size: 34px;
+    color: red;
+  }
+  #controls {
+    margin-top: 15px;
+  }
+  button {
+    font-size: 20px;
+    padding: 10px 15px;
+    margin: 5px;
+    border-radius: 5px;
+    border: 1px solid #aaa;
+    background: #eee;
+    cursor: pointer;
+  }
+  #level-info {
+    margin-top: 15px;
+    font-size: 24px;
+    font-weight: bold;
+  }
+  #letter {
+    margin-top: 10px;
+    font-size: 28px;
+    color: #d22;
+  }
+  /* Şifre ekranı */
+  #password-screen {
+    display: none;
+    margin-top: 40px;
+  }
+  #password-screen input {
+    font-size: 22px;
+    padding: 8px 10px;
+    width: 150px;
+    border-radius: 5px;
+    border: 1px solid #999;
+  }
+  #password-screen button {
+    font-size: 22px;
+    padding: 8px 16px;
+    margin-left: 10px;
+    border-radius: 5px;
+    border: 1px solid #999;
+    cursor: pointer;
+  }
+  #password-message {
+    margin-top: 15px;
+    font-size: 20px;
+    color: green;
+    font-weight: bold;
+  }
+  #password-error {
+    color: red;
+  }
+</style>
+</head>
+<body>
+
+<h1>Romantic Maze Game</h1>
+<div id="level-info"></div>
+<div id="game"></div>
+<div id="letter"></div>
+<div id="controls">
+  <button id="up">⬆️</button><br/>
+  <button id="left">⬅️</button>
+  <button id="down">⬇️</button>
+  <button id="right">➡️</button>
+</div>
+
+<!-- Şifre ekranı -->
+<div id="password-screen">
+  <label for="password-input">Enter password:</label><br/>
+  <input type="text" id="password-input" autocomplete="off" />
+  <button id="password-submit">Submit</button>
+  <div id="password-message"></div>
+</div>
+
+<script>
+(() => {
+  const levels = [
+    {
+      grid: [
+        [0,0,0,0,0,0,0,0,0,0,0],
+        [0,1,1,0,1,1,0,1,2,1,0],
+        [0,1,0,0,1,0,0,1,0,1,0],
+        [0,1,0,1,1,1,0,1,0,1,0],
+        [0,1,0,1,0,1,0,1,0,1,0],
+        [0,1,1,1,0,1,1,1,0,1,0],
+        [0,0,0,1,0,0,0,1,0,1,0],
+        [0,1,1,1,1,1,0,1,0,1,0],
+        [0,1,0,0,0,1,0,1,0,1,0],
+        [0,1,1,1,1,1,1,1,0,1,0],
+        [0,0,0,0,0,0,0,0,0,0,0],
+      ],
+      start: {x:1,y:1},
+      letter: 'M'
+    },
+    {
+      grid: [
+        [0,0,0,0,0,0,0],
+        [0,1,0,1,1,2,0],
+        [0,1,0,0,1,0,0],
+        [0,1,1,0,1,1,0],
+        [0,0,1,1,0,1,0],
+        [0,1,1,1,1,1,0],
+        [0,0,0,0,0,0,0],
+      ],
+      start: {x:1,y:1},
+      letter: 'E'
+    },
+    {
+      grid: [
+        [0,0,0,0,0,0,0,0],
+        [0,1,1,0,1,1,2,0],
+        [0,0,1,0,0,1,0,0],
+        [0,1,1,1,0,1,1,0],
+        [0,1,0,1,1,1,0,0],
+        [0,1,0,0,0,1,1,0],
+        [0,1,1,1,1,1,1,0],
+        [0,0,0,0,0,0,0,0],
+      ],
+      start: {x:1,y:1},
+      letter: 'L'
+    },
+    {
+      grid: [
+        [0,0,0,0,0,0,0],
+        [0,1,1,1,1,2,0],
+        [0,0,0,0,1,0,0],
+        [0,1,1,0,1,1,0],
+        [0,1,0,0,0,1,0],
+        [0,1,1,1,1,1,0],
+        [0,0,0,0,0,0,0],
+      ],
+      start: {x:1,y:1},
+      letter: 'I'
+    }
+  ];
+
+  const directions = {
+    'up': {dx:0, dy:-1},
+    'down': {dx:0, dy:1},
+    'left': {dx:-1, dy:0},
+    'right': {dx:1, dy:0}
+  };
+
+  let currentLevel = 0;
+  let pos = {x:0,y:0};
+  let gameOver = false;
+
+  const gameDiv = document.getElementById('game');
+  const levelInfo = document.getElementById('level-info');
+  const letterDiv = document.getElementById('letter');
+  const controlsDiv = document.getElementById('controls');
+  const passwordScreen = document.getElementById('password-screen');
+  const passwordInput = document.getElementById('password-input');
+  const passwordSubmit = document.getElementById('password-submit');
+  const passwordMessage = document.getElementById('password-message');
+
+  function render() {
+    const lvl = levels[currentLevel];
+    const grid = lvl.grid;
+    let html = '<table>';
+    for(let y=0; y<grid.length; y++) {
+      html += '<tr>';
+      for(let x=0; x<grid[y].length; x++) {
+        let cell = grid[y][x];
+        let cls = '';
+        let content = '';
+        if(pos.x === x && pos.y === y) {
+          content = '👱‍♀️';
+          cls = 'player';
+        } else if(cell === 0) {
+          cls = 'wall';
+          content = '';
+        } else if(cell === 1) {
+          cls = 'path';
+          content = '';
+        } else if(cell === 2) {
+          cls = 'exit';
+          content = '❤️';
+        }
+        html += `<td class="${cls}">${content}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    gameDiv.innerHTML = html;
+    levelInfo.textContent = `Level ${currentLevel+1} / 4`;
+  }
+
+  function canMove(x,y) {
+    const lvl = levels[currentLevel];
+    const grid = lvl.grid;
+    if(y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return false;
+    return grid[y][x] !== 0;
+  }
+
+  function move(dx,dy) {
+    if(gameOver) return; // oyun bitti, hareket yok
+    const newX = pos.x + dx;
+    const newY = pos.y + dy;
+    if(canMove(newX,newY)) {
+      pos.x = newX;
+      pos.y = newY;
+      render();
+      checkExit();
+    }
+  }
+
+  function checkExit() {
+    const lvl = levels[currentLevel];
+    if(lvl.grid[pos.y][pos.x] === 2) {
+      letterDiv.textContent = `Level complete! Letter: ${lvl.letter}`;
+      setTimeout(() => {
+        currentLevel++;
+        if(currentLevel >= levels.length) {
+          // Oyun bitti
+          gameOver = true;
+          letterDiv.textContent = 'Game completed! Enter the password below:';
+          gameDiv.style.display = 'none';
+          controlsDiv.style.display = 'none';
+          levelInfo.style.display = 'none';
+          passwordScreen.style.display = 'block';
+          passwordInput.focus();
+        } else {
+          pos = {...levels[currentLevel].start};
+          letterDiv.textContent = '';
+          render();
+        }
+      }, 1500);
+    }
+  }
+
+  passwordSubmit.addEventListener('click', () => {
+    checkPassword();
+  });
+  passwordInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+
+  function checkPassword() {
+    const input = passwordInput.value.trim().toLowerCase();
+    if(input === 'meli') {
+      passwordMessage.style.color = 'green';
+      passwordMessage.textContent = 'Password accepted! Thank you for playing ❤️';
+      passwordInput.disabled = true;
+      passwordSubmit.disabled = true;
+    } else {
+      passwordMessage.style.color = 'red';
+      passwordMessage.textContent = 'Wrong password. Try again.';
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  }
+
+  pos = {...levels[0].start};
+  render();
+
+  document.getElementById('up').addEventListener('click', ()=> move(0,-1));
+  document.getElementById('down').addEventListener('click', ()=> move(0,1));
+  document.getElementById('left').addEventListener('click', ()=> move(-1,0));
+  document.getElementById('right').addEventListener('click', ()=> move(1,0));
+
+  document.addEventListener('keydown', e => {
+    switch(e.key) {
+      case 'ArrowUp': move(0,-1); break;
+      case 'ArrowDown': move(0,1); break;
+      case 'ArrowLeft': move(-1,0); break;
+      case 'ArrowRight': move(1,0); break;
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
